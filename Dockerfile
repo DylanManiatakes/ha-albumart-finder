@@ -1,23 +1,23 @@
-ARG BUILD_FROM
-FROM $BUILD_FROM
+# ./Dockerfile
+FROM python:3.12-alpine
 
-# Add-on metadata
-ENV \
-    LANG=C.UTF-8 \
-    PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-# Dependencies
-RUN apk add --no-cache python3 py3-pip
+WORKDIR /app
+COPY run.py /app/run.py
 
-# Python deps
-RUN pip3 install --no-cache-dir flask paho-mqtt requests
+# deps
+RUN apk add --no-cache curl && \
+    pip install flask paho-mqtt requests
 
-# App files
-WORKDIR /opt/albumart
-COPY run.py /opt/albumart/run.py
+# data dir for the served jpg (bind/mount this if you want persistence)
+ENV STATIC_DIR=/data/albumart
+RUN mkdir -p ${STATIC_DIR}
 
-# s6 service
-COPY rootfs /
-
-# Expose UI port
 EXPOSE 8099
+
+# basic healthcheck: /status should return JSON
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD curl -fsS http://127.0.0.1:8099/status || exit 1
+
+CMD ["python", "/app/run.py"]
